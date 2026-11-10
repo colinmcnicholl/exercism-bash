@@ -30,9 +30,6 @@ encode() {
             [l]=11 [m]=12 [n]=13 [o]=14 [p]=15 [q]=16 [r]=17 [s]=18 [t]=19
             [u]=20 [v]=21 [w]=22 [x]=23 [y]=24 [z]=25)
 
-  echo "encode: key = $key"
-  echo "encode: plaintext = $plaintext"
-
   for ((i = 0; i < plaintext_size; i++ )); do
     if (( key_size < plaintext_size )); then
       key_index=$(( i % key_size ))
@@ -44,18 +41,50 @@ encode() {
     plaintext_chr="${plaintext:i:1}"
     pos="${letter_indices[$plaintext_chr]}"
     shift_dist="${letter_indices[$key_chr]}"
-    shifted_pos=$(( pos + shift_dist ))
+    shifted_pos=$(( (pos + shift_dist) % 26 ))
 
-    echo "i = $i, key_chr = $key_chr, plaintext_chr = $plaintext_chr"
+    # echo "i = $i, key_chr = $key_chr, plaintext_chr = $plaintext_chr"
     ciphertext+="${letters[$shifted_pos]}"
+    echo "i = $i, letters[shifted_pos] = ${letters[$shifted_pos]}, ciphertext = $ciphertext"
 
   done
 
   echo "$ciphertext"
 }
 
-# decode() {
-# }
+decode() {
+  local key="$1"
+  local ciphertext="$2"
+  local plaintext ciphertext_chr key_chr key_size ciphertext_size shift_dist
+  local pos shifted_pos
+  key_size="${#key}"
+  ciphertext_size="${#ciphertext}"
+  declare -a letters
+  letters=({a..z})
+  declare -A letter_indices
+  letter_indices=([a]=0 [b]=1 [c]=2 [d]=3 [e]=4 [f]=5 [g]=6 [h]=7 [i]=8 [j]=9 [k]=10
+            [l]=11 [m]=12 [n]=13 [o]=14 [p]=15 [q]=16 [r]=17 [s]=18 [t]=19
+            [u]=20 [v]=21 [w]=22 [x]=23 [y]=24 [z]=25)
+
+  for ((i = 0; i < ciphertext_size; i++ )); do
+    if (( key_size < ciphertext_size )); then
+      key_index=$(( i % key_size ))
+    else
+      key_index="$i"
+    fi
+
+    key_chr="${key:key_index:1}"
+    plaintext_chr="${ciphertext:i:1}"
+    pos="${letter_indices[$plaintext_chr]}"
+    shift_dist="${letter_indices[$key_chr]}"
+    shifted_pos=$(( (pos - shift_dist) % 26 ))
+
+    plaintext+="${letters[shifted_pos]}"
+
+  done
+
+  echo "$plaintext"
+}
 
 die() {
   printf '%s\n' "invalid key" >&2
@@ -127,6 +156,10 @@ simple_cipher () {
 
     plaintext="${plaintext,,}"
 
+  fi
+
+  if ! [[ "$cipher_key" =~ ^[[:lower:]]+$ ]]; then
+    die
   fi
 
   "$cmd" "$cipher_key" "$plaintext"
