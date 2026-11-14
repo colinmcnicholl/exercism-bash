@@ -68,64 +68,76 @@ mmi_naive() {
   echo ""
 }
 
+mmi_extended_euclidean() {
+  local a="$1"
+  local t r newt newr quotient temp_t temp_r
+  t=0; r="$m"; newt=1; newr="$a"
+
+  while (( newr != 0 )); do
+    quotient=$(( r / newr ))
+    temp_t="$newt"
+    newt=$(( t - (quotient * newt) ))
+    t="$temp_t"
+    temp_r="$newr"
+    newr=$(( r - (quotient * newr) ))
+    r="$temp_r"
+  done
+
+  if (( r > 1 )); then
+    echo "a is not invertible."
+    return 1
+  elif (( t < 0 )); then
+    t=$(( t + m ))
+  fi
+
+  echo "$t"
+}
+
 translate() {
   local direction="$1"
   local a="$2"
   local b="$3"
   local text="$4"
-  local i x translated
+  local i x translated inv=""
+
+  if [[ "$direction" == "decode" ]]; then
+    inv=$(mmi_extended_euclidean "$a") || return 1
+  fi
 
   for ((j = 0; j < ${#text}; j++)); do
-    if [[ "${plaintext:j:1}" =~ [a-z] ]]; then
-      i=${letter_indices[${text:j:1}]}
-      x=$(( (a * i + b) % m ))
+    local char="${text:j:1}"
+    if [[ "$char" =~ [a-z] ]]; then
+      i=${letter_indices[$char]}
+      if [[ "$direction" == "encode" ]]; then
+        x=$(( (a * i + b) % m ))
+      else
+        x=$(( (((inv * (i - b)) % m) + m) % m ))
+      fi
       translated+="${index_to_letter[$x]}"
     elif [[ "${text:j:1}" =~ [0-9] ]]; then
-      translated+="${text:j:1}"
+      translated+="$char"
     fi
   done
 
-  chunk 5 "$translated"
+  if [[ "$direction" == "encode" ]]; then
+    chunk 5 "$translated"
+  else
+    echo "$translated"
+  fi
 }
 
 encode() {
   local a="$1"
   local b="$2"
-  local plaintext="$3"
-  local i x encoded
-
-  for ((j = 0; j < ${#plaintext}; j++)); do
-    if [[ "${plaintext:j:1}" =~ [a-z] ]]; then
-      i=${letter_indices[${plaintext:j:1}]}
-      x=$(( (a * i + b) % m ))
-      encoded+="${index_to_letter[$x]}"
-    elif [[ "${plaintext:j:1}" =~ [0-9] ]]; then
-      encoded+="${plaintext:j:1}"
-    fi
-  done
-
-  chunk 5 "$encoded"
+  local text="$3"
+  translate "encode" "$a" "$b" "$text"
 }
 
 decode() {
   local a="$1"
   local b="$2"
   local text="$3"
-  local i x decoded inv
-  inv=$(mmi_naive "$a")
-  text=$(normalise "$text")
-
-  for ((j = 0; j < ${#text}; j++)); do
-    if [[ "${text:j:1}" =~ [a-z] ]]; then
-      i=${letter_indices[${text:j:1}]}
-      index=$(( (((inv * (i - b)) % m) + m) % m ))
-      decoded+="${index_to_letter[$index]}"
-    elif [[ "${text:j:1}" =~ [0-9] ]]; then
-      decoded+="${text:j:1}"
-    fi
-  done
-
-  echo "$decoded"
+  translate "decode" "$a" "$b" "$text"
 }
 
 main() {
