@@ -66,7 +66,7 @@ main () {
 
   for data in "${data_bits[@]}"; do
     echo "data = $data"
-    hex=$(bc <<< "ibase=2; obase=16; $data")
+    hex=$(bc <<< "obase=16; ibase=2; $data")
     echo "hex = $hex"
   done
 
